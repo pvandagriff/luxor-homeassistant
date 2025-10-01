@@ -1,54 +1,88 @@
-"""Config flow for Luxor integration."""
+"""Luxor API client."""
 import logging
-import voluptuous as vol
-
-from homeassistant import config_entries
-from homeassistant.const import CONF_HOST
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-import homeassistant.helpers.config_validation as cv
-
-from .const import DOMAIN, CONF_NAME_PREFIX
-from .luxor_api import LuxorController
+import aiohttp
+import async_timeout
 
 _LOGGER = logging.getLogger(__name__)
 
-DATA_SCHEMA = vol.Schema({
-    vol.Required(CONF_HOST): cv.string,
-    vol.Optional(CONF_NAME_PREFIX, default=""): cv.string,
-})
 
+class LuxorController:
+    """Luxor controller API client."""
 
-class LuxorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Luxor."""
+    def __init__(self, host: str, session: aiohttp.ClientSession):
+        """Initialize the Luxor controller."""
+        self.host = host
+        self.session = session
+        self.base_url = f"http://{host}"
 
-    VERSION = 1
+    async def _request(self, endpoint: str, data: dict = None):
+        """Make a request to the Luxor controller."""
+        url = f"{self.base_url}{endpoint}"
+        
+        try:
+            async with async_timeout.timeout(10):
+                if data:
+                    async with self.session.post(
+                        url,
+                        json=data,
+                        headers={"Content-Type": "application/json"}
+                    ) as response:
+                        response.raise_for_status()
+                        return await response.json()
+                else:
+                    async with self.session.get(url) as response:
+                        response.raise_for_status()
+                        return await response.json()
+        except Exception as err:
+            _LOGGER.error("Error connecting to Luxor controller: %s", err)
+            raise
 
-    async def async_step_user(self, user_input=None):
-        """Handle the initial step."""
-        errors = {}
+    async def get_controller_name(self):
+        """Get controller name and type."""
+        return await self._request("/ControllerName.json")
 
-        if user_input is not None:
-            host = user_input[CONF_HOST]
-            session = async_get_clientsession(self.hass)
-            controller = LuxorController(host, session)
+    def determine_controller_type(self, controller_info: dict) -> str:
+        """Determine controller type from response."""
+        controller_name = controller_info.get("Controller", "").lower()
+        
+        if "lxzdc" in controller_name:
+            return "ZDC"
+        elif "lxtwo" in controller_name:
+            return "ZDTWO"
+        else:
+            return "ZD"
 
-            try:
-                controller_info = await controller.get_controller_name()
-                controller_name = controller_info.get("Controller", "Unknown")
-                
-                await self.async_set_unique_id(controller_info.get("Controller"))
-                self._abort_if_unique_id_configured()
+    async def get_group_list(self):
+        """Get list of light groups."""
+        response = await self._request("/GroupListGet.json")
+        return response.get("GroupList", [])
 
-                return self.async_create_entry(
-                    title=f"Luxor {controller_name}",
-                    data=user_input,
-                )
-            except Exception as err:
-                _LOGGER.error("Cannot connect to Luxor controller: %s", err)
-                errors["base"] = "cannot_connect"
+    async def get_theme_list(self):
+        """Get list of themes."""
+        response = await self._request("/ThemeListGet.json")
+        return response.get("ThemeList", [])
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=DATA_SCHEMA,
-            errors=errors,
-        )
+    async def illuminate_group(self, group_number: int, intensity: int):
+        """Set group intensity (0-100)."""
+        data = {
+            "GroupNumber": group_number,
+            "Intensity": intensity
+        }
+        return await self._request("/IlluminateGroup.json", data)
+
+    async def illuminate_theme(self, theme_index: int, on_off: int):
+        """Activate a theme."""
+        data = {
+            "ThemeIndex": theme_index,
+            "OnOff": on_off
+        }
+        return await self._request("/IlluminateTheme.json", data)
+
+    async def set_hue_sat(self, group_number: int, hue: int, sat: int):
+        """Set hue and saturation for a color group."""
+        data = {
+            "GroupNumber": group_number,
+            "Hue": hue,
+            "Sat": sat
+        }
+        return await self._request("/SetHueSat.json", data)
