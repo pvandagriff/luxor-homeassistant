@@ -1,0 +1,5 @@
+{
+  "name": "Luxor Lighting",
+  "render_readme": true,
+  "domains": ["light", "button"]
+}
