@@ -1,0 +1,11 @@
+{
+  "domain": "luxor",
+  "name": "Luxor Lighting",
+  "codeowners": ["@pvandagriff"],
+  "config_flow": true,
+  "documentation": "https://github.com/pvandagriff/luxor-homeassistant",
+  "issue_tracker": "https://github.com/pvandagriff/luxor-homeassistant/issues",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "1.0.0"
+}
