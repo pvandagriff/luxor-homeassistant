@@ -34,7 +34,8 @@ async def async_setup_entry(
     
     if coordinator.data and "groups" in coordinator.data:
         for group in coordinator.data["groups"]:
-            group_type = group.get("Grp", GROUP_TYPE_MONO)
+            # Colr: 1 = monochrome, 2 = color
+            group_type = group.get("Colr", 1)
             
             if group_type == GROUP_TYPE_COLOR and controller_type in ["ZDC", "ZDTWO"]:
                 entities.append(LuxorColorLight(coordinator, controller, group, name_prefix))
@@ -55,7 +56,7 @@ class LuxorLight(CoordinatorEntity, LightEntity):
         super().__init__(coordinator)
         self._controller = controller
         self._group_data = group_data
-        self._group_number = group_data["GroupNumber"]
+        self._group_number = group_data["Grp"]
         self._name_prefix = name_prefix
         
         self._attr_name = f"{name_prefix}{group_data['Name']}"
@@ -66,8 +67,8 @@ class LuxorLight(CoordinatorEntity, LightEntity):
         """Return true if light is on."""
         if self.coordinator.data and "groups" in self.coordinator.data:
             for group in self.coordinator.data["groups"]:
-                if group["GroupNumber"] == self._group_number:
-                    return group.get("Intensity", 0) > 0
+                if group["Grp"] == self._group_number:
+                    return group.get("Inten", 0) > 0
         return False
 
     @property
@@ -75,8 +76,8 @@ class LuxorLight(CoordinatorEntity, LightEntity):
         """Return the brightness of the light."""
         if self.coordinator.data and "groups" in self.coordinator.data:
             for group in self.coordinator.data["groups"]:
-                if group["GroupNumber"] == self._group_number:
-                    intensity = group.get("Intensity", 0)
+                if group["Grp"] == self._group_number:
+                    intensity = group.get("Inten", 0)
                     return int(intensity * 255 / 100)
         return 0
 
@@ -109,7 +110,7 @@ class LuxorColorLight(LuxorLight):
         """Return the hue and saturation color value."""
         if self.coordinator.data and "groups" in self.coordinator.data:
             for group in self.coordinator.data["groups"]:
-                if group["GroupNumber"] == self._group_number:
+                if group["Grp"] == self._group_number:
                     hue = group.get("Hue", 0)
                     sat = group.get("Sat", 0)
                     return (hue, sat)
