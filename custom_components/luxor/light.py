@@ -34,10 +34,8 @@ async def async_setup_entry(
     
     if coordinator.data and "groups" in coordinator.data:
         for group in coordinator.data["groups"]:
-            # Colr: 1 = monochrome, 2 = color
-            group_type = group.get("Colr", 1)
-            
-            if group_type == GROUP_TYPE_COLOR and controller_type in ["ZDC", "ZDTWO"]:
+            # For ZDTWO controllers, treat all groups as color lights
+            if controller_type in ["ZDC", "ZDTWO"]:
                 entities.append(LuxorColorLight(coordinator, controller, group, name_prefix))
             else:
                 entities.append(LuxorLight(coordinator, controller, group, name_prefix))
