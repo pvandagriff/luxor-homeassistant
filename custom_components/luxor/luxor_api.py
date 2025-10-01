@@ -15,31 +15,27 @@ class LuxorController:
         self.session = session
         self.base_url = f"http://{host}"
 
-    async def _request(self, endpoint: str, data: dict = None):
+    async def _request(self, method: str):
         """Make a request to the Luxor controller."""
-        url = f"{self.base_url}{endpoint}"
+        url = self.base_url
+        data = {"Method": method}
         
         try:
             async with async_timeout.timeout(10):
-                if data:
-                    async with self.session.post(
-                        url,
-                        json=data,
-                        headers={"Content-Type": "application/json"}
-                    ) as response:
-                        response.raise_for_status()
-                        return await response.json()
-                else:
-                    async with self.session.get(url) as response:
-                        response.raise_for_status()
-                        return await response.json()
+                async with self.session.post(
+                    url,
+                    json=data,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    response.raise_for_status()
+                    return await response.json()
         except Exception as err:
             _LOGGER.error("Error connecting to Luxor controller: %s", err)
             raise
 
     async def get_controller_name(self):
         """Get controller name and type."""
-        return await self._request("/ControllerName.json")
+        return await self._request("ControllerName")
 
     def determine_controller_type(self, controller_info: dict) -> str:
         """Determine controller type from response."""
@@ -54,35 +50,77 @@ class LuxorController:
 
     async def get_group_list(self):
         """Get list of light groups."""
-        response = await self._request("/GroupListGet.json")
+        response = await self._request("GroupListGet")
         return response.get("GroupList", [])
 
     async def get_theme_list(self):
         """Get list of themes."""
-        response = await self._request("/ThemeListGet.json")
+        response = await self._request("ThemeListGet")
         return response.get("ThemeList", [])
 
     async def illuminate_group(self, group_number: int, intensity: int):
         """Set group intensity (0-100)."""
+        url = self.base_url
         data = {
+            "Method": "IlluminateGroup",
             "GroupNumber": group_number,
             "Intensity": intensity
         }
-        return await self._request("/IlluminateGroup.json", data)
+        
+        try:
+            async with async_timeout.timeout(10):
+                async with self.session.post(
+                    url,
+                    json=data,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    response.raise_for_status()
+                    return await response.json()
+        except Exception as err:
+            _LOGGER.error("Error setting group: %s", err)
+            raise
 
     async def illuminate_theme(self, theme_index: int, on_off: int):
         """Activate a theme."""
+        url = self.base_url
         data = {
+            "Method": "IlluminateTheme",
             "ThemeIndex": theme_index,
             "OnOff": on_off
         }
-        return await self._request("/IlluminateTheme.json", data)
+        
+        try:
+            async with async_timeout.timeout(10):
+                async with self.session.post(
+                    url,
+                    json=data,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    response.raise_for_status()
+                    return await response.json()
+        except Exception as err:
+            _LOGGER.error("Error setting theme: %s", err)
+            raise
 
     async def set_hue_sat(self, group_number: int, hue: int, sat: int):
         """Set hue and saturation for a color group."""
+        url = self.base_url
         data = {
+            "Method": "SetHueSat",
             "GroupNumber": group_number,
             "Hue": hue,
             "Sat": sat
         }
-        return await self._request("/SetHueSat.json", data)
+        
+        try:
+            async with async_timeout.timeout(10):
+                async with self.session.post(
+                    url,
+                    json=data,
+                    headers={"Content-Type": "application/json"}
+                ) as response:
+                    response.raise_for_status()
+                    return await response.json()
+        except Exception as err:
+            _LOGGER.error("Error setting color: %s", err)
+            raise
